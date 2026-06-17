@@ -8,7 +8,7 @@ Common patterns for building prototype-to-Figma output. Read this before your fi
 > `SKILL.md` instead.
 
 ## Table of Contents
-1. Font loading
+1. Font loading and text style binding
 2. Creating frames
 3. Importing DS components (matched elements)
 4. Building from primitives (unmatched elements)
@@ -20,12 +20,38 @@ Common patterns for building prototype-to-Figma output. Read this before your fi
 10. Annotation category reference
 11. Defensive annotation helpers (platform-safe, includes DS Drift category)
 12. Prototype Spec Document template (Inspect-only clients)
+13. Rocket 3.0 variable + text-style helpers
 
 ---
 
-## 1. Font loading
+## 1. Font loading and text style binding
 
-Always load fonts before setting any text character. Inter is the standard Figma font.
+### Rocket 3.0 text styles (preferred)
+
+Bind text nodes to Rocket 3.0 named styles instead of manually loading fonts. This keeps
+text styles connected to the DS across all files that have the Rocket 3.0 library linked.
+See Section 13 for the `applyTextStyle` helper.
+
+| Role | Rocket 3.0 style name |
+|------|----------------------|
+| Body default | `body/body1` (16px Regular) |
+| Small body / metadata | `body/body3` (12px Regular) |
+| Section label / emphasis | `subtitle/subtitle1` (16px Semi Bold) |
+| Eyebrow / overline | `caption/section-title` (10px Medium) |
+| CTA / button label | `button/button-sm` (12px Medium) |
+
+```javascript
+// Preferred: bind to Rocket 3.0 style by name (see Section 13 for helper)
+const label = figma.createText();
+await figma.loadFontAsync({ family: "Inter", style: "Regular" }); // still required before setting .characters
+label.characters = "Submit";
+await applyTextStyle(label, "button/button-sm"); // binds DS style
+```
+
+### Font loading fallback
+
+When no Rocket 3.0 text styles are found (primitives in a file without the R3 library), load
+Inter directly:
 
 ```javascript
 await figma.loadFontAsync({ family: "Inter", style: "Regular" });
@@ -75,6 +101,17 @@ container.fills = [{ type: 'SOLID', color: { r: 0.97, g: 0.97, b: 0.97 } }];
 > collapses to 1px tall (or wide) and renders as invisible. The fix: call `resize()` first,
 > then set sizing modes. This applies to every auto-layout frame — including the flow overview
 > frame and any container that should grow with its content.
+
+> **Rocket 3.0 layout gotchas:**
+> - `layoutSizingHorizontal = 'FILL'` must be set **after** `parent.appendChild(node)` — the
+>   property is ignored if set before the node has a parent with auto-layout.
+> - For component sets (e.g. Badge, IconButton): use `figma.importComponentSetByKeyAsync(key)`,
+>   not `importComponentByKeyAsync` — the latter only works for individual variants.
+> - Badge / pill instances: set `layoutSizingHorizontal = 'HUG'` and
+>   `primaryAxisSizingMode = 'AUTO'` after creating the instance to get the correct pill shape.
+> - `figma.variables.getLocalVariablesAsync()` may return an empty array in some Figma clients
+>   even when library variables exist. Fall back to `figma.importVariableByKeyAsync(key)` if
+>   name-based lookup returns null. See Section 13 for the helper that handles both.
 
 ### Scrollable frames
 
@@ -158,18 +195,15 @@ When a prototype component has no DS match, approximate it visually using plain 
 rectangles, and text. The goal is to make reviewers understand the intent — not to be
 pixel-perfect. Always follow with a "No DS match" badge (see section 5).
 
+Primitives use Rocket 3.0 token names for colors and radii via the helpers in Section 13
+(`bindColor`, `bindRadius`, `applyTextStyle`). This ensures primitives visually match the DS
+even when no DS component exists. Fall back to hardcoded values only if the R3 library is not
+linked in the file.
+
 ```javascript
 // ─── Button (no DS match) ─────────────────────────────────────────────────
 async function buildPrimitiveButton(label, variant = 'primary', parent, x, y) {
   await figma.loadFontAsync({ family: "Inter", style: "Semi Bold" });
-
-  const bg = variant === 'primary'
-    ? { r: 0.09, g: 0.46, b: 0.96 }   // blue
-    : { r: 0.93, g: 0.93, b: 0.93 };  // light gray
-
-  const textColor = variant === 'primary'
-    ? { r: 1, g: 1, b: 1 }
-    : { r: 0.1, g: 0.1, b: 0.1 };
 
   const btn = figma.createFrame();
   btn.name = `Button [no DS match]: ${label}`;
@@ -178,14 +212,30 @@ async function buildPrimitiveButton(label, variant = 'primary', parent, x, y) {
   btn.counterAxisSizingMode = 'AUTO';
   btn.paddingTop = 10; btn.paddingBottom = 10;
   btn.paddingLeft = 20; btn.paddingRight = 20;
-  btn.cornerRadius = 6;
-  btn.fills = [{ type: 'SOLID', color: bg }];
+
+  // Rocket 3.0 tokens — fall back to hex if variable not found
+  if (variant === 'primary') {
+    const bound = await bindColor(btn, 0, 'color/brand/primary');
+    if (!bound) btn.fills = [{ type: 'SOLID', color: { r: 0, g: 0.77, b: 0.70 } }]; // #00C4B3
+  } else {
+    const bound = await bindColor(btn, 0, 'color/bg/surface');
+    if (!bound) btn.fills = [{ type: 'SOLID', color: { r: 0.93, g: 0.93, b: 0.93 } }];
+  }
+  const radiusBound = await bindRadius(btn, 'radius/md');
+  if (!radiusBound) btn.cornerRadius = 6;
 
   const text = figma.createText();
   text.fontName = { family: "Inter", style: "Semi Bold" };
   text.characters = label;
   text.fontSize = 14;
-  text.fills = [{ type: 'SOLID', color: textColor }];
+  await applyTextStyle(text, 'button/button-sm');
+  if (variant === 'primary') {
+    const bound = await bindColor(text, 0, 'color/bg/default');
+    if (!bound) text.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+  } else {
+    const bound = await bindColor(text, 0, 'color/text/primary');
+    if (!bound) text.fills = [{ type: 'SOLID', color: { r: 0.1, g: 0.1, b: 0.1 } }];
+  }
   btn.appendChild(text);
 
   btn.x = x; btn.y = y;
@@ -200,9 +250,13 @@ async function buildPrimitiveInput(placeholder, parent, x, y, width = 320) {
   const input = figma.createFrame();
   input.name = 'Input [no DS match]';
   input.resize(width, 40);
-  input.cornerRadius = 4;
-  input.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-  input.strokes = [{ type: 'SOLID', color: { r: 0.8, g: 0.8, b: 0.8 } }];
+  const radiusBound = await bindRadius(input, 'radius/sm');
+  if (!radiusBound) input.cornerRadius = 4;
+  const bgBound = await bindColor(input, 0, 'color/bg/surface');
+  if (!bgBound) input.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+  const strokeBound = await bindColor(input, 0, 'color/border/default'); // strokes use same helper
+  if (!strokeBound) input.strokes = [{ type: 'SOLID', color: { r: 0.8, g: 0.8, b: 0.8 } }];
+  else input.strokes = [{ type: 'SOLID' }]; // color bound via variable
   input.strokeWeight = 1;
   input.paddingLeft = 12; input.paddingRight = 12;
   input.paddingTop = 10; input.paddingBottom = 10;
@@ -212,8 +266,9 @@ async function buildPrimitiveInput(placeholder, parent, x, y, width = 320) {
   const text = figma.createText();
   text.fontName = { family: "Inter", style: "Regular" };
   text.characters = placeholder;
-  text.fontSize = 14;
-  text.fills = [{ type: 'SOLID', color: { r: 0.65, g: 0.65, b: 0.65 } }];
+  await applyTextStyle(text, 'body/body1');
+  const textBound = await bindColor(text, 0, 'color/text/secondary');
+  if (!textBound) text.fills = [{ type: 'SOLID', color: { r: 0.65, g: 0.65, b: 0.65 } }];
   input.appendChild(text);
 
   input.x = x; input.y = y;
@@ -222,7 +277,7 @@ async function buildPrimitiveInput(placeholder, parent, x, y, width = 320) {
 }
 
 // ─── Card / container (no DS match) ──────────────────────────────────────
-function buildPrimitiveCard(name, width, parent, x, y) {
+async function buildPrimitiveCard(name, width, parent, x, y) {
   const card = figma.createFrame();
   card.name = `${name} [no DS match]`;
   card.resize(width, 1); // height auto via auto-layout
@@ -232,8 +287,10 @@ function buildPrimitiveCard(name, width, parent, x, y) {
   card.paddingTop = 20; card.paddingBottom = 20;
   card.paddingLeft = 20; card.paddingRight = 20;
   card.itemSpacing = 12;
-  card.cornerRadius = 8;
-  card.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+  const radiusBound = await bindRadius(card, 'radius/lg');
+  if (!radiusBound) card.cornerRadius = 8;
+  const bgBound = await bindColor(card, 0, 'color/bg/surface');
+  if (!bgBound) card.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
   card.effects = [{
     type: 'DROP_SHADOW',
     color: { r: 0, g: 0, b: 0, a: 0.08 },
@@ -252,13 +309,14 @@ function buildPrimitiveCard(name, width, parent, x, y) {
 async function buildPrimitiveBanner(message, type = 'info', parent, x, y, width = 400) {
   await figma.loadFontAsync({ family: "Inter", style: "Regular" });
 
-  const colors = {
+  // Semantic color fallbacks (R3 doesn't expose semantic alert colors as variables)
+  const fallbackColors = {
     info:    { bg: { r: 0.92, g: 0.96, b: 1.00 }, text: { r: 0.1, g: 0.3, b: 0.7 } },
     success: { bg: { r: 0.90, g: 0.98, b: 0.91 }, text: { r: 0.1, g: 0.5, b: 0.2 } },
     warning: { bg: { r: 1.00, g: 0.97, b: 0.88 }, text: { r: 0.6, g: 0.4, b: 0.0 } },
     error:   { bg: { r: 1.00, g: 0.93, b: 0.93 }, text: { r: 0.7, g: 0.1, b: 0.1 } },
   };
-  const c = colors[type] ?? colors.info;
+  const c = fallbackColors[type] ?? fallbackColors.info;
 
   const banner = figma.createFrame();
   banner.name = `Banner [no DS match]: ${type}`;
@@ -268,13 +326,20 @@ async function buildPrimitiveBanner(message, type = 'info', parent, x, y, width 
   banner.counterAxisSizingMode = 'AUTO';
   banner.paddingTop = 12; banner.paddingBottom = 12;
   banner.paddingLeft = 16; banner.paddingRight = 16;
-  banner.cornerRadius = 6;
-  banner.fills = [{ type: 'SOLID', color: c.bg }];
+  const radiusBound = await bindRadius(banner, 'radius/md');
+  if (!radiusBound) banner.cornerRadius = 6;
+  // Banner bg: use brand primary for info, raw hex for success/warning/error (no R3 semantic tokens)
+  if (type === 'info') {
+    const bound = await bindColor(banner, 0, 'color/brand/primary');
+    if (!bound) banner.fills = [{ type: 'SOLID', color: c.bg }];
+  } else {
+    banner.fills = [{ type: 'SOLID', color: c.bg }];
+  }
 
   const text = figma.createText();
   text.fontName = { family: "Inter", style: "Regular" };
   text.characters = message;
-  text.fontSize = 14;
+  await applyTextStyle(text, 'body/body1');
   text.fills = [{ type: 'SOLID', color: c.text }];
   text.layoutGrow = 1;
   text.textAutoResize = 'HEIGHT';
@@ -697,3 +762,85 @@ the team can read and comment on directly.
 **Important:** For components without DS matches, build from primitives (frames, rectangles,
 text, auto-layout). Do NOT call `figma.createComponent()`. Do NOT skip the element.
 ```
+
+---
+
+## 13. Rocket 3.0 variable + text-style helpers
+
+These three helpers are used by the Section 4 primitive builders. Include them at the top of
+every `use_figma` script that builds primitives. They look up Rocket 3.0 variables and text
+styles by name, and return `false` (not `null`) when nothing is found so callers can decide
+whether to fall back to hardcoded values.
+
+```javascript
+// ─── Look up a Rocket 3.0 variable by token path name ────────────────────
+// Works in files where the Rocket 3.0 library is linked.
+// Falls back to importVariableByKeyAsync when getLocalVariablesAsync returns empty
+// (common in some Figma clients even when the library is linked).
+async function getRocket3Variable(namePath) {
+  try {
+    const vars = await figma.variables.getLocalVariablesAsync();
+    if (vars.length > 0) {
+      const found = vars.find(v => v.name === namePath);
+      return found ?? null;
+    }
+  } catch (_) {}
+  return null; // caller falls back to hardcoded hex
+}
+
+// ─── Bind a Rocket 3.0 color variable to a node's fills ──────────────────
+// Returns true if variable was found and bound; false if caller should set raw fill.
+// Note: for stroke color binding, use node.setBoundVariableForPaint('strokes', index, v)
+// instead — this helper targets fills only.
+async function bindColor(node, fillIndex, tokenName) {
+  const v = await getRocket3Variable(tokenName);
+  if (!v) return false;
+  try {
+    node.setBoundVariableForPaint('fills', fillIndex, v);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+// ─── Bind a Rocket 3.0 radius variable to a node's cornerRadius ──────────
+// Returns true if bound; false if caller should set raw cornerRadius number.
+async function bindRadius(node, tokenName) {
+  const v = await getRocket3Variable(tokenName);
+  if (!v) return false;
+  try {
+    node.setBoundVariable('cornerRadius', v);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+// ─── Apply a Rocket 3.0 named text style to a text node ──────────────────
+// Must be called AFTER setting node.characters (font must already be loaded).
+// No-ops silently if the style name is not found in the file.
+async function applyTextStyle(textNode, styleName) {
+  try {
+    const styles = await figma.getLocalTextStylesAsync();
+    const match = styles.find(s => s.name === styleName);
+    if (match) textNode.textStyleId = match.id;
+  } catch (_) {}
+}
+```
+
+**Token name reference (Rocket 3.0):**
+
+| Token | Name |
+|-------|------|
+| Brand teal | `color/brand/primary` |
+| Page background | `color/bg/default` |
+| Card / surface background | `color/bg/surface` |
+| Primary text | `color/text/primary` |
+| Secondary text / icons | `color/text/secondary` |
+| Default border | `color/border/default` |
+| Strong border | `color/border/strong` |
+| Corner radius — small | `radius/sm` |
+| Corner radius — medium | `radius/md` |
+| Corner radius — large | `radius/lg` |
+| Corner radius — extra large | `radius/xl` |
+| Corner radius — pill | `radius/full` |

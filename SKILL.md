@@ -169,8 +169,36 @@ interpretation explicitly before starting Phase 2.
 
 For every component in the Phase 1a inventory, determine DS match or primitive.
 
+**Rocket 3.0 token conventions** — use these names when looking up variables or flagging drift:
+
+```
+Colors:  color/bg/default · color/bg/surface · color/brand/primary
+         color/text/primary · color/text/secondary
+         color/border/default · color/border/strong
+Radius:  radius/sm · radius/md · radius/lg · radius/xl · radius/full
+Spacing: 4px base grid — 4, 8, 12, 16, 20, 24, 32, 40, 48
+Icons:   Phosphor icon library — search DS for Phosphor component by icon name;
+         fill icon layers with color/text/secondary; never inline SVG paths
+```
+
+**Rocket 3.0 component search aliases** — when a prototype uses a generic name, try these DS
+search terms before declaring "no match":
+
+| Prototype element | Search term(s) |
+|---|---|
+| Button | `"Button"` |
+| Input / text field | `"Input"` |
+| Badge / tag / chip | `"Badge"` |
+| Icon button | `"IconButton"` |
+| Dropdown / select | `"Select"`, `"Dropdown"` |
+| Checkbox | `"Checkbox"` |
+| Toggle / switch | `"Toggle"`, `"Switch"` |
+| Alert / banner | `"Banner"`, `"Alert"` |
+| Avatar | `"Avatar"` |
+| Icon | Search Phosphor library by icon name (e.g. `"arrow-right"`) |
+
 **Search strategy** (try in order before declaring "no match"):
-1. `search_design_system(fileKey, query="ComponentName", includeComponents=true)`
+1. `search_design_system(fileKey, query="ComponentName", includeComponents=true)` — use alias table above
 2. Try alternate names: Alert/Banner/Toast/Notification, Dropdown/Select/Menu, Tag/Chip/Badge, etc.
 3. Search by visual category: "input", "navigation", "feedback", "card"
 4. Check if a parent component covers it (e.g., "Card" covers `Card.Header`)
@@ -179,7 +207,8 @@ For every component in the Phase 1a inventory, determine DS match or primitive.
 before setting properties in Phase 4.
 
 **For DS variables:** `search_design_system(..., includeVariables=true)` for colors and spacing.
-Record any variable keys found — bind them in Phase 4 instead of hardcoding raw values.
+Prefer Rocket 3.0 token names (listed above) when searching. Record any variable keys found —
+bind them in Phase 4 instead of hardcoding raw values.
 
 **Build the mapping table — every row needs a build approach and drift note:**
 
