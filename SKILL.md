@@ -1,5 +1,5 @@
 ---
-name: prototype-to-figma
+name: rocket-ship
 description: >
   Converts a working Claude Code prototype into a structured Figma design file — exploding each
   interaction flow into separate frames, using the target file's design system components, and
