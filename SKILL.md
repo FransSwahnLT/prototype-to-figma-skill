@@ -121,11 +121,27 @@ Every element with a DS Drift note from Phase 2 must have a DS Drift annotation.
 
 ### Phase 0: Resolve file and detect capabilities
 
+**Rocket 3.0 library file keys** — always search these directly, not the target file:
+
+```
+ROCKET3_DS_KEY    = "pafe2Ef03rlBZDgJT1A49G"   // 🚀 Rocket 3.0 — UI Kit
+ROCKET3_ICONS_KEY = "FPtbVqunkX6NbtnC38pYTS"   // Rocket 3.0 — Icons
+```
+
 **File:** Extract `fileKey` from a user-provided URL (`figma.com/design/:fileKey/...`). If no
 URL is given, call `whoami` then `create_new_file` — never block on a missing URL.
 
 **Capabilities:** Attempt `get_metadata` to confirm Inspect tools. Check tool list for
 `use_figma` (Write) and `get_code_connect_map` (Code Connect). Announce what you have.
+
+**Library check** *(Write tier only)* — verify both R3 libraries are reachable before building:
+```
+search_design_system(fileKey=ROCKET3_DS_KEY,    query="Button", includeComponents=true)
+search_design_system(fileKey=ROCKET3_ICONS_KEY, query="arrow",  includeComponents=true)
+```
+If either call fails or returns no results, warn the user: "Rocket 3.0 library unreachable —
+check that you have view access to the file. Primitives will be used as fallback."
+Do not block — continue with Phase 1.
 
 **Route:** Write tools available → Phases 1–6. Write tools unavailable → Phases 1–3, then
 [Prototype Spec Document](#prototype-spec-document--inspect-only-output).
@@ -198,17 +214,22 @@ search terms before declaring "no match":
 | Icon | Search Phosphor library by icon name (e.g. `"arrow-right"`) |
 
 **Search strategy** (try in order before declaring "no match"):
-1. `search_design_system(fileKey, query="ComponentName", includeComponents=true)` — use alias table above
+1. `search_design_system(fileKey=ROCKET3_DS_KEY, query="ComponentName", includeComponents=true)` — always search the R3 UI Kit directly, not the target file
 2. Try alternate names: Alert/Banner/Toast/Notification, Dropdown/Select/Menu, Tag/Chip/Badge, etc.
 3. Search by visual category: "input", "navigation", "feedback", "card"
 4. Check if a parent component covers it (e.g., "Card" covers `Card.Header`)
 
+**For icons specifically:** always search the R3 icon library:
+`search_design_system(fileKey=ROCKET3_ICONS_KEY, query="<icon-name>", includeComponents=true)`
+Never search the DS file for icons — they live in the separate icon library.
+
 **For found components:** call `get_context_for_code_connect` to get exact variant prop names
 before setting properties in Phase 4.
 
-**For DS variables:** `search_design_system(..., includeVariables=true)` for colors and spacing.
-Prefer Rocket 3.0 token names (listed above) when searching. Record any variable keys found —
-bind them in Phase 4 instead of hardcoding raw values.
+**For DS variables:** `search_design_system(fileKey=ROCKET3_DS_KEY, includeVariables=true)` for
+colors and spacing. Prefer Rocket 3.0 token names (listed above). Record variable keys found —
+bind them in Phase 4 instead of hardcoding raw values. See `figma-patterns.md` Section 13 for
+the `getRocket3Variable` helper that resolves variables by name across both local and library scope.
 
 **Build the mapping table — every row needs a build approach and drift note:**
 

@@ -767,22 +767,38 @@ text, auto-layout). Do NOT call `figma.createComponent()`. Do NOT skip the eleme
 
 ## 13. Rocket 3.0 variable + text-style helpers
 
-These three helpers are used by the Section 4 primitive builders. Include them at the top of
-every `use_figma` script that builds primitives. They look up Rocket 3.0 variables and text
-styles by name, and return `false` (not `null`) when nothing is found so callers can decide
-whether to fall back to hardcoded values.
+These helpers are used by the Section 4 primitive builders. Include them at the top of every
+`use_figma` script that builds primitives.
+
+**Before calling these helpers**, run the Phase 0 library check to build `ROCKET3_VAR_KEY_MAP`
+by calling `search_design_system(fileKey=ROCKET3_DS_KEY, includeVariables=true)` and extracting
+a `{ "token/name": "variableKey" }` map from the results. Pass it into the script so
+`getRocket3Variable` can resolve variables even when the target file has no R3 library linked.
 
 ```javascript
+// ─── Rocket 3.0 library file keys ────────────────────────────────────────
+const ROCKET3_DS_KEY    = "pafe2Ef03rlBZDgJT1A49G"; // 🚀 Rocket 3.0 — UI Kit
+const ROCKET3_ICONS_KEY = "FPtbVqunkX6NbtnC38pYTS"; // Rocket 3.0 — Icons
+
+// ROCKET3_VAR_KEY_MAP is built at Phase 0 from search_design_system results:
+// { "color/brand/primary": "<varKey>", "radius/md": "<varKey>", ... }
+// Pass it into your use_figma script as a constant.
+
 // ─── Look up a Rocket 3.0 variable by token path name ────────────────────
-// Works in files where the Rocket 3.0 library is linked.
-// Falls back to importVariableByKeyAsync when getLocalVariablesAsync returns empty
-// (common in some Figma clients even when the library is linked).
+// 1. Fast path: local variables (works when R3 library is already linked in target file)
+// 2. Library path: import by key using ROCKET3_VAR_KEY_MAP built from Phase 0 search
 async function getRocket3Variable(namePath) {
   try {
     const vars = await figma.variables.getLocalVariablesAsync();
     if (vars.length > 0) {
       const found = vars.find(v => v.name === namePath);
-      return found ?? null;
+      if (found) return found;
+    }
+  } catch (_) {}
+  // Target file doesn't have R3 linked — import directly from library using key map
+  try {
+    if (typeof ROCKET3_VAR_KEY_MAP !== 'undefined' && ROCKET3_VAR_KEY_MAP[namePath]) {
+      return await figma.importVariableByKeyAsync(ROCKET3_VAR_KEY_MAP[namePath]);
     }
   } catch (_) {}
   return null; // caller falls back to hardcoded hex
