@@ -213,28 +213,28 @@ async function buildPrimitiveButton(label, variant = 'primary', parent, x, y) {
   btn.paddingTop = 10; btn.paddingBottom = 10;
   btn.paddingLeft = 20; btn.paddingRight = 20;
 
-  // Rocket 3.0 tokens — fall back to hex if variable not found
+  // Rocket 3.0 tokens — fall back to R3 hardcoded values if variable not found
   if (variant === 'primary') {
-    const bound = await bindColor(btn, 0, 'color/brand/primary');
-    if (!bound) btn.fills = [{ type: 'SOLID', color: { r: 0, g: 0.77, b: 0.70 } }]; // #00C4B3
+    const bound = await bindColor(btn, 0, 'brand.primary');
+    if (!bound) btn.fills = [{ type: 'SOLID', color: R3.color.brandPrimary }]; // #055B61
   } else {
-    const bound = await bindColor(btn, 0, 'color/bg/surface');
-    if (!bound) btn.fills = [{ type: 'SOLID', color: { r: 0.93, g: 0.93, b: 0.93 } }];
+    const bound = await bindColor(btn, 0, 'bg.surface');
+    if (!bound) btn.fills = [{ type: 'SOLID', color: R3.color.bgSurface }];
   }
-  const radiusBound = await bindRadius(btn, 'radius/md');
-  if (!radiusBound) btn.cornerRadius = 6;
+  const radiusBound = await bindRadius(btn, 'radius.sm');
+  if (!radiusBound) btn.cornerRadius = R3.radius.sm; // 4px (MUI button default)
 
   const text = figma.createText();
   text.fontName = { family: "Inter", style: "Semi Bold" };
   text.characters = label;
-  text.fontSize = 14;
+  text.fontSize = 12; // button-sm: 12px
   await applyTextStyle(text, 'button/button-sm');
   if (variant === 'primary') {
-    const bound = await bindColor(text, 0, 'color/bg/default');
-    if (!bound) text.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+    const bound = await bindColor(text, 0, 'brand.onPrimary');
+    if (!bound) text.fills = [{ type: 'SOLID', color: R3.color.brandOnPrimary }]; // #FFFFFF
   } else {
-    const bound = await bindColor(text, 0, 'color/text/primary');
-    if (!bound) text.fills = [{ type: 'SOLID', color: { r: 0.1, g: 0.1, b: 0.1 } }];
+    const bound = await bindColor(text, 0, 'text.primary');
+    if (!bound) text.fills = [{ type: 'SOLID', color: R3.color.textPrimary }]; // #2F3337
   }
   btn.appendChild(text);
 
@@ -250,12 +250,12 @@ async function buildPrimitiveInput(placeholder, parent, x, y, width = 320) {
   const input = figma.createFrame();
   input.name = 'Input [no DS match]';
   input.resize(width, 40);
-  const radiusBound = await bindRadius(input, 'radius/sm');
-  if (!radiusBound) input.cornerRadius = 4;
-  const bgBound = await bindColor(input, 0, 'color/bg/surface');
-  if (!bgBound) input.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-  const strokeBound = await bindColor(input, 0, 'color/border/default'); // strokes use same helper
-  if (!strokeBound) input.strokes = [{ type: 'SOLID', color: { r: 0.8, g: 0.8, b: 0.8 } }];
+  const radiusBound = await bindRadius(input, 'radius.sm');
+  if (!radiusBound) input.cornerRadius = R3.radius.sm; // 4px
+  const bgBound = await bindColor(input, 0, 'bg.surface');
+  if (!bgBound) input.fills = [{ type: 'SOLID', color: R3.color.bgSurface }];
+  const strokeBound = await bindColor(input, 0, 'border.default');
+  if (!strokeBound) input.strokes = [{ type: 'SOLID', color: R3.color.borderDefault }];
   else input.strokes = [{ type: 'SOLID' }]; // color bound via variable
   input.strokeWeight = 1;
   input.paddingLeft = 12; input.paddingRight = 12;
@@ -267,8 +267,8 @@ async function buildPrimitiveInput(placeholder, parent, x, y, width = 320) {
   text.fontName = { family: "Inter", style: "Regular" };
   text.characters = placeholder;
   await applyTextStyle(text, 'body/body1');
-  const textBound = await bindColor(text, 0, 'color/text/secondary');
-  if (!textBound) text.fills = [{ type: 'SOLID', color: { r: 0.65, g: 0.65, b: 0.65 } }];
+  const textBound = await bindColor(text, 0, 'text.secondary');
+  if (!textBound) text.fills = [{ type: 'SOLID', color: R3.color.textSecondary }]; // #2F3337 70%
   input.appendChild(text);
 
   input.x = x; input.y = y;
@@ -287,10 +287,10 @@ async function buildPrimitiveCard(name, width, parent, x, y) {
   card.paddingTop = 20; card.paddingBottom = 20;
   card.paddingLeft = 20; card.paddingRight = 20;
   card.itemSpacing = 12;
-  const radiusBound = await bindRadius(card, 'radius/lg');
-  if (!radiusBound) card.cornerRadius = 8;
-  const bgBound = await bindColor(card, 0, 'color/bg/surface');
-  if (!bgBound) card.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+  const radiusBound = await bindRadius(card, 'radius.lg');
+  if (!radiusBound) card.cornerRadius = R3.radius.lg; // 12px
+  const bgBound = await bindColor(card, 0, 'bg.surface');
+  if (!bgBound) card.fills = [{ type: 'SOLID', color: R3.color.bgSurface }];
   card.effects = [{
     type: 'DROP_SHADOW',
     color: { r: 0, g: 0, b: 0, a: 0.08 },
@@ -309,12 +309,12 @@ async function buildPrimitiveCard(name, width, parent, x, y) {
 async function buildPrimitiveBanner(message, type = 'info', parent, x, y, width = 400) {
   await figma.loadFontAsync({ family: "Inter", style: "Regular" });
 
-  // Semantic color fallbacks (R3 doesn't expose semantic alert colors as variables)
+  // R3 semantic status colors — source: leaptools/rocket-3 src/theme/tokens.js
   const fallbackColors = {
-    info:    { bg: { r: 0.92, g: 0.96, b: 1.00 }, text: { r: 0.1, g: 0.3, b: 0.7 } },
-    success: { bg: { r: 0.90, g: 0.98, b: 0.91 }, text: { r: 0.1, g: 0.5, b: 0.2 } },
-    warning: { bg: { r: 1.00, g: 0.97, b: 0.88 }, text: { r: 0.6, g: 0.4, b: 0.0 } },
-    error:   { bg: { r: 1.00, g: 0.93, b: 0.93 }, text: { r: 0.7, g: 0.1, b: 0.1 } },
+    info:    { bg: R3.color.statusInfoBg,    text: R3.color.statusInfo    },
+    success: { bg: R3.color.statusSuccessBg, text: R3.color.statusSuccess },
+    warning: { bg: R3.color.statusWarningBg, text: R3.color.statusWarning },
+    error:   { bg: R3.color.statusErrorBg,   text: R3.color.statusError   },
   };
   const c = fallbackColors[type] ?? fallbackColors.info;
 
@@ -326,15 +326,10 @@ async function buildPrimitiveBanner(message, type = 'info', parent, x, y, width 
   banner.counterAxisSizingMode = 'AUTO';
   banner.paddingTop = 12; banner.paddingBottom = 12;
   banner.paddingLeft = 16; banner.paddingRight = 16;
-  const radiusBound = await bindRadius(banner, 'radius/md');
-  if (!radiusBound) banner.cornerRadius = 6;
-  // Banner bg: use brand primary for info, raw hex for success/warning/error (no R3 semantic tokens)
-  if (type === 'info') {
-    const bound = await bindColor(banner, 0, 'color/brand/primary');
-    if (!bound) banner.fills = [{ type: 'SOLID', color: c.bg }];
-  } else {
-    banner.fills = [{ type: 'SOLID', color: c.bg }];
-  }
+  const radiusBound = await bindRadius(banner, 'radius.md');
+  if (!radiusBound) banner.cornerRadius = R3.radius.md; // 8px
+  // All banner types use R3 status bg colors (available in the R3 token reference)
+  banner.fills = [{ type: 'SOLID', color: c.bg }];
 
   const text = figma.createText();
   text.fontName = { family: "Inter", style: "Regular" };
@@ -770,23 +765,41 @@ text, auto-layout). Do NOT call `figma.createComponent()`. Do NOT skip the eleme
 These helpers are used by the Section 4 primitive builders. Include them at the top of every
 `use_figma` script that builds primitives.
 
-**Before calling these helpers**, run the Phase 0 library check to build `ROCKET3_VAR_KEY_MAP`
-by calling `search_design_system(fileKey=ROCKET3_DS_KEY, includeVariables=true)` and extracting
-a `{ "token/name": "variableKey" }` map from the results. Pass it into the script so
-`getRocket3Variable` can resolve variables even when the target file has no R3 library linked.
+**Token source of truth:** github.com/leaptools/rocket-3 (Vite + React + MUI).
+Values below are extracted directly from `src/theme/primitives.js` and `src/theme/tokens.js`.
+If the target file has R3 variables linked locally, `getRocket3Variable` will bind them;
+otherwise the hardcoded hex fallbacks produce visually correct output without any Figma DS library.
 
 ```javascript
-// ─── Rocket 3.0 library file keys ────────────────────────────────────────
-const ROCKET3_DS_KEY    = "pafe2Ef03rlBZDgJT1A49G"; // 🚀 Rocket 3.0 — UI Kit
-const ROCKET3_ICONS_KEY = "FPtbVqunkX6NbtnC38pYTS"; // Rocket 3.0 — Icons
+// ─── Rocket 3.0 icon library key (icons only — no DS component library key) ─
+const ROCKET3_ICONS_KEY = "FPtbVqunkX6NbtnC38pYTS"; // Rocket 3.0 — Icons (Phosphor)
 
-// ROCKET3_VAR_KEY_MAP is built at Phase 0 from search_design_system results:
-// { "color/brand/primary": "<varKey>", "radius/md": "<varKey>", ... }
-// Pass it into your use_figma script as a constant.
+// ─── Hardcoded R3 token values (light mode) — source: leaptools/rocket-3 ──
+// Use as fallbacks when local Figma variables are not available.
+const R3 = {
+  color: {
+    brandPrimary:   { r: 0.020, g: 0.357, b: 0.380 }, // #055B61
+    brandOnPrimary: { r: 1,     g: 1,     b: 1     }, // #FFFFFF
+    bgDefault:      { r: 0.961, g: 0.961, b: 0.961 }, // #F5F5F5
+    bgSurface:      { r: 1,     g: 1,     b: 1     }, // #FFFFFF
+    textPrimary:    { r: 0.184, g: 0.200, b: 0.216 }, // #2F3337
+    textSecondary:  { r: 0.184, g: 0.200, b: 0.216, a: 0.70 }, // #2F3337 70%
+    borderDefault:  { r: 0,     g: 0,     b: 0,     a: 0.12 }, // rgba(0,0,0,0.12)
+    statusInfo:     { r: 0.161, g: 0.443, b: 0.820 }, // #2971D1
+    statusInfoBg:   { r: 0.929, g: 0.953, b: 0.984 }, // #EDF3FB
+    statusSuccess:  { r: 0.286, g: 0.498, b: 0.216 }, // #497F37
+    statusSuccessBg:{ r: 0.933, g: 0.957, b: 0.925 }, // #EEF4EC
+    statusWarning:  { r: 0.678, g: 0.396, b: 0.027 }, // #AD6507
+    statusWarningBg:{ r: 0.980, g: 0.957, b: 0.918 }, // #FAF4EA
+    statusError:    { r: 0.808, g: 0.243, b: 0.216 }, // #CE3E37
+    statusErrorBg:  { r: 0.988, g: 0.929, b: 0.925 }, // #FCEDEC
+  },
+  radius: { none: 0, sm: 4, md: 8, lg: 12, xl: 16, full: 999 },
+};
 
 // ─── Look up a Rocket 3.0 variable by token path name ────────────────────
-// 1. Fast path: local variables (works when R3 library is already linked in target file)
-// 2. Library path: import by key using ROCKET3_VAR_KEY_MAP built from Phase 0 search
+// Works when the R3 variable library is linked in the target Figma file.
+// Returns null if not found — callers use R3.color.* fallbacks instead.
 async function getRocket3Variable(namePath) {
   try {
     const vars = await figma.variables.getLocalVariablesAsync();
@@ -795,13 +808,7 @@ async function getRocket3Variable(namePath) {
       if (found) return found;
     }
   } catch (_) {}
-  // Target file doesn't have R3 linked — import directly from library using key map
-  try {
-    if (typeof ROCKET3_VAR_KEY_MAP !== 'undefined' && ROCKET3_VAR_KEY_MAP[namePath]) {
-      return await figma.importVariableByKeyAsync(ROCKET3_VAR_KEY_MAP[namePath]);
-    }
-  } catch (_) {}
-  return null; // caller falls back to hardcoded hex
+  return null;
 }
 
 // ─── Bind a Rocket 3.0 color variable to a node's fills ──────────────────
@@ -844,19 +851,26 @@ async function applyTextStyle(textNode, styleName) {
 }
 ```
 
-**Token name reference (Rocket 3.0):**
+**Rocket 3.0 token reference (from leaptools/rocket-3 codebase):**
 
-| Token | Name |
-|-------|------|
-| Brand teal | `color/brand/primary` |
-| Page background | `color/bg/default` |
-| Card / surface background | `color/bg/surface` |
-| Primary text | `color/text/primary` |
-| Secondary text / icons | `color/text/secondary` |
-| Default border | `color/border/default` |
-| Strong border | `color/border/strong` |
-| Corner radius — small | `radius/sm` |
-| Corner radius — medium | `radius/md` |
-| Corner radius — large | `radius/lg` |
-| Corner radius — extra large | `radius/xl` |
-| Corner radius — pill | `radius/full` |
+| Role | Token path | Light mode value | Dark mode value |
+|------|-----------|-----------------|----------------|
+| Primary action fill | `brand.primary` | `#055B61` | `#20BCC7` |
+| Text on primary | `brand.onPrimary` | `#FFFFFF` | `#222222` |
+| Page background | `bg.default` | `#F5F5F5` | `#232729` |
+| Card / surface | `bg.surface` | `#FFFFFF` | `#2C3034` |
+| Body text | `text.primary` | `#2F3337` | `#F2F2F2` |
+| Secondary text / icons | `text.secondary` | `#2F3337` 70% | `#F2F2F2` 70% |
+| Borders, dividers | `border.default` | `rgba(0,0,0,0.12)` | `rgba(255,255,255,0.12)` |
+| Info status | `status.info` / `status.bg.info` | `#2971D1` / `#EDF3FB` | `#6CA8F9` / `#1A2540` |
+| Success status | `status.success` / `status.bg.success` | `#497F37` / `#EEF4EC` | `#76BA5F` / `#1C2A19` |
+| Warning status | `status.warning` / `status.bg.warning` | `#AD6507` / `#FAF4EA` | `#F69A22` / `#2A2110` |
+| Error status | `status.error` / `status.bg.error` | `#CE3E37` / `#FCEDEC` | `#FF817A` / `#2A1518` |
+| Corner radius sm | `radius.sm` | 4px | — |
+| Corner radius md | `radius.md` | 8px | — |
+| Corner radius lg | `radius.lg` | 12px | — |
+| Corner radius xl | `radius.xl` | 16px | — |
+| Corner radius pill | `radius.full` | 999px | — |
+| Button sm height | `size.button.sm` | 30px | — |
+| Button md height | `size.button.md` | 36px | — |
+| Button lg height | `size.button.lg` | 42px | — |

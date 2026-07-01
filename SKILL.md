@@ -121,12 +121,17 @@ Every element with a DS Drift note from Phase 2 must have a DS Drift annotation.
 
 ### Phase 0: Resolve file and detect capabilities
 
-**Rocket 3.0 library file keys** — always search these directly, not the target file:
+**Rocket 3.0 icon library key** — always search icons against this file directly:
 
 ```
-ROCKET3_DS_KEY    = "pafe2Ef03rlBZDgJT1A49G"   // 🚀 Rocket 3.0 — UI Kit
-ROCKET3_ICONS_KEY = "FPtbVqunkX6NbtnC38pYTS"   // Rocket 3.0 — Icons
+ROCKET3_ICONS_KEY = "FPtbVqunkX6NbtnC38pYTS"   // Rocket 3.0 — Icons (Phosphor)
 ```
+
+> **Note:** The Rocket 3.0 UI Kit is code-based (github.com/leaptools/rocket-3, Vite + React +
+> MUI). Token values are hardcoded in this skill from that repo as the authoritative source.
+> Do NOT search a separate Figma DS library for components or variables — use `search_design_system`
+> against the target file's own linked libraries, then fall back to primitives with the correct
+> R3 token values listed in Phase 2.
 
 **File:** Extract `fileKey` from a user-provided URL (`figma.com/design/:fileKey/...`). If no
 URL is given, call `whoami` then `create_new_file` — never block on a missing URL.
@@ -134,13 +139,12 @@ URL is given, call `whoami` then `create_new_file` — never block on a missing 
 **Capabilities:** Attempt `get_metadata` to confirm Inspect tools. Check tool list for
 `use_figma` (Write) and `get_code_connect_map` (Code Connect). Announce what you have.
 
-**Library check** *(Write tier only)* — verify both R3 libraries are reachable before building:
+**Icon library check** *(Write tier only)* — verify the icon library is reachable:
 ```
-search_design_system(fileKey=ROCKET3_DS_KEY,    query="Button", includeComponents=true)
-search_design_system(fileKey=ROCKET3_ICONS_KEY, query="arrow",  includeComponents=true)
+search_design_system(fileKey=ROCKET3_ICONS_KEY, query="arrow", includeComponents=true)
 ```
-If either call fails or returns no results, warn the user: "Rocket 3.0 library unreachable —
-check that you have view access to the file. Primitives will be used as fallback."
+If the call fails or returns no results, warn the user: "Rocket 3.0 icon library unreachable —
+check that you have view access. Icon placeholders will be used as fallback."
 Do not block — continue with Phase 1.
 
 **Route:** Write tools available → Phases 1–6. Write tools unavailable → Phases 1–3, then
@@ -185,16 +189,36 @@ interpretation explicitly before starting Phase 2.
 
 For every component in the Phase 1a inventory, determine DS match or primitive.
 
-**Rocket 3.0 token conventions** — use these names when looking up variables or flagging drift:
+**Rocket 3.0 token reference** — source of truth is github.com/leaptools/rocket-3.
+Use these exact values when building primitives (light mode unless prototype specifies dark):
 
 ```
-Colors:  color/bg/default · color/bg/surface · color/brand/primary
-         color/text/primary · color/text/secondary
-         color/border/default · color/border/strong
-Radius:  radius/sm · radius/md · radius/lg · radius/xl · radius/full
-Spacing: 4px base grid — 4, 8, 12, 16, 20, 24, 32, 40, 48
-Icons:   Phosphor icon library — search DS for Phosphor component by icon name;
-         fill icon layers with color/text/secondary; never inline SVG paths
+Colors (light mode):
+  brand.primary   #055B61   — primary action fills (buttons, active states)
+  brand.onPrimary #FFFFFF   — text/icon on brand.primary fills
+  bg.default      #F5F5F5   — page/canvas background
+  bg.surface      #FFFFFF   — cards, panels, inputs
+  text.primary    #2F3337   — headings, body text
+  text.secondary  rgba(47,51,55,0.7)  — secondary labels, placeholder, icons
+  border.default  rgba(0,0,0,0.12)    — input borders, dividers
+  status.info     #2971D1  / bg #EDF3FB
+  status.success  #497F37  / bg #EEF4EC
+  status.warning  #AD6507  / bg #FAF4EA
+  status.error    #CE3E37  / bg #FCEDEC
+
+Colors (dark mode overrides — apply when prototype uses dark theme):
+  brand.primary   #20BCC7
+  bg.default      #232729
+  bg.surface      #2C3034
+  text.primary    #F2F2F2
+  border.default  rgba(255,255,255,0.12)
+
+Radius (px):  none=0 · sm=4 · md=8 · lg=12 · xl=16 · full=999
+Spacing:      4px base grid — 4, 8, 12, 16, 20, 24, 32, 40, 48
+Typography:   Inter — body1=16px/22.4 · body3=12px/18 · subtitle1=16px 500wt
+              caption=10px · button-sm=12px/14.4 500wt
+Icons:        Phosphor library — search by icon name via ROCKET3_ICONS_KEY;
+              fill icon layers with text.secondary; never inline SVG paths
 ```
 
 **Rocket 3.0 component search aliases** — when a prototype uses a generic name, try these DS
@@ -214,22 +238,22 @@ search terms before declaring "no match":
 | Icon | Search Phosphor library by icon name (e.g. `"arrow-right"`) |
 
 **Search strategy** (try in order before declaring "no match"):
-1. `search_design_system(fileKey=ROCKET3_DS_KEY, query="ComponentName", includeComponents=true)` — always search the R3 UI Kit directly, not the target file
+1. `search_design_system(query="ComponentName", includeComponents=true)` — searches whatever libraries are linked in the target file
 2. Try alternate names: Alert/Banner/Toast/Notification, Dropdown/Select/Menu, Tag/Chip/Badge, etc.
 3. Search by visual category: "input", "navigation", "feedback", "card"
 4. Check if a parent component covers it (e.g., "Card" covers `Card.Header`)
 
-**For icons specifically:** always search the R3 icon library:
+**For icons specifically:** always search the R3 icon library directly:
 `search_design_system(fileKey=ROCKET3_ICONS_KEY, query="<icon-name>", includeComponents=true)`
-Never search the DS file for icons — they live in the separate icon library.
+Never search the target file for icons — they live in the separate Phosphor icon library.
 
 **For found components:** call `get_context_for_code_connect` to get exact variant prop names
 before setting properties in Phase 4.
 
-**For DS variables:** `search_design_system(fileKey=ROCKET3_DS_KEY, includeVariables=true)` for
-colors and spacing. Prefer Rocket 3.0 token names (listed above). Record variable keys found —
-bind them in Phase 4 instead of hardcoding raw values. See `figma-patterns.md` Section 13 for
-the `getRocket3Variable` helper that resolves variables by name across both local and library scope.
+**For DS variables:** Try local variable lookup first (`figma.variables.getLocalVariablesAsync()`).
+If the target file has R3 linked as a library, variables will be available locally. If not, use
+the hardcoded token values from the reference table above. See `figma-patterns.md` Section 13
+for the simplified helpers that handle both paths.
 
 **Build the mapping table — every row needs a build approach and drift note:**
 
